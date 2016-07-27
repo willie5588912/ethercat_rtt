@@ -16,7 +16,7 @@ using namespace RTT;
 class EthercatIGH : public RTT::TaskContext{
 
   private:
-    const static int enc_count = 10;
+    const static int enc_count = 5;
     int curr_pos = 0;
 
     // Necessary components to run thread for serving ROS callbacks
@@ -38,15 +38,27 @@ class EthercatIGH : public RTT::TaskContext{
       return igh_configure(); 
     }
 
+    bool startHook()
+    {
+      return igh_start(); 
+    }
+
     void updateHook()
     {
       curr_pos = igh_update(enc_count);
       log(Info) << "EthercatIGH Update ! curr_pos = " << curr_pos << endlog();
     }
 
-    void cleanupHook(){
-      non_rt_ros_nh_->shutdown();
-      non_rt_ros_queue_thread_.join();
+    void stopHook()
+    {
+      igh_stop();
+    }
+
+    void cleanupHook()
+    {
+      igh_cleanup();
+      //non_rt_ros_nh_->shutdown();
+      //non_rt_ros_queue_thread_.join();
     }
 
     void serviceNonRtRosQueue()

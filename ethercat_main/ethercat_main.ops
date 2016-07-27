@@ -16,6 +16,6 @@ setActivity("EthercatIGH",0.001,HighestPriority,ORO_SCHED_RT)
 EthercatIGH.configure()
 
 ## Start it
-EthercatIGH.start()
+#EthercatIGH.start()
 
 

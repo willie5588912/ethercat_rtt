@@ -8,27 +8,29 @@
 #include <unistd.h>
 #include <ethercat_igh/ethercat_igh.h>
 
+#define CHECK_BIT(var, pos) ((var) & (1 << (pos)))
+
 bool igh_configure()
 {
   // Requests an EtherCAT master for realtime operation.
   master = ecrt_request_master(0); // Index of the master to request.
   if (!master)
-    return -1;
+    return false;
 
   // Creates a new process data domain
   domainOutput = ecrt_master_create_domain(master);
   if (!domainOutput)
-    return -1;
+    return false;
   domainInput = ecrt_master_create_domain(master);
   if (!domainInput)
-    return -1;
+    return false;
 
   // Obtains a slave configuration
   //if (!(sc_motor = ecrt_master_slave_config(master, MotorSlavePos, Delta_ASDAA2))) 
   if (!(sc_motor = ecrt_master_slave_config(master, MotorSlavePos, MBDHT2510BA1))) 
   {
     fprintf(stderr, "Failed to get slave configuration.\n");
-    return -1;
+    return false;
   }
 
   // Configuring PDOs
@@ -36,41 +38,63 @@ bool igh_configure()
   if (ecrt_slave_config_pdos(sc_motor, EC_END, mbdh_syncs))
   {
     fprintf(stderr, "Failed to configure PDOs.\n");
-    return -1;
+    return false;
   }
 
   if (ecrt_domain_reg_pdo_entry_list(domainOutput, domainOutput_regs)) 
   {
     fprintf(stderr, "PDO entry registration failed!\n");
-    return -1;
+    return false;
    }
 
   if (ecrt_domain_reg_pdo_entry_list(domainInput, domainInput_regs)) 
   {
     fprintf(stderr, "PDO entry registration failed!\n");
-    return -1;
+    return false;
   }
 
   printf("Activating master...\n");
   if (ecrt_master_activate(master))
-    return -1;
+    return false;
 
   if (!(domainOutput_pd = ecrt_domain_data(domainOutput))) 
   {
-    return -1;
+    return false;
   }
 
   if (!(domainInput_pd = ecrt_domain_data(domainInput))) 
   {
-    return -1;
+    return false;
   }
 
-  while (ini_driver() < 5) 
+  return true;
+}
+
+
+bool igh_start()
+{
+  int state = -500;
+  while (state <= 5) 
+  {
+    ini_driver(state);
+    state++;
     usleep(1000);
+  }
 
-  printf("Now in CSP mode, ready to receive commands.\n");
-
-  return 1;
+  uint16_t statwd = EC_READ_U16(domainInput_pd + mbdh_statwd);
+  printf("6041h = %4.4x\n",statwd); 
+  if( CHECK_BIT(statwd, 0) && !CHECK_BIT(statwd, 1) &&
+     !CHECK_BIT(statwd, 2) && !CHECK_BIT(statwd, 3) &&
+      CHECK_BIT(statwd, 5) && !CHECK_BIT(statwd, 6))
+  {
+    printf("Now in CSP mode, ready to receive commands.\n");
+    return true;
+  }
+  else
+  {
+    printf("Servo on fail.\n");
+    return false;
+  }
 }
 
 int igh_update(int enc_count)
@@ -85,11 +109,11 @@ int igh_update(int enc_count)
   // periodically check the states and show the current pose
   //if(counter % 100 == 0)
   curr_pos = EC_READ_S32(domainInput_pd + mbdh_actpos);
-  printf("curr_pos = %d\n", curr_pos);
+  //printf("curr_pos = %d\n", curr_pos);
 
   // write target position
   target_pos += enc_count; 
-  printf("target_pos = %d\n", target_pos);
+  //printf("target_pos = %d\n", target_pos);
   EC_WRITE_S32(domainOutput_pd + mbdh_tarpos, target_pos);
 
   // send process data
@@ -100,7 +124,29 @@ int igh_update(int enc_count)
   return curr_pos;
 }
 
-int ini_driver()
+void igh_stop()
+{
+  //ecrt_master_deactivate(master);
+
+  // receive process data
+  ecrt_master_receive(master);
+  ecrt_domain_process(domainOutput);
+  ecrt_domain_process(domainInput);
+
+  EC_WRITE_U16(domainOutput_pd + mbdh_cntlwd, 0x00);
+
+  // send process data
+  ecrt_domain_queue(domainOutput);
+  ecrt_domain_queue(domainInput);
+  ecrt_master_send(master);
+}
+
+void igh_cleanup() 
+{
+  ecrt_release_master(master);
+}
+
+int ini_driver(int state)
 {
   // receive process data
   ecrt_master_receive(master);
@@ -108,23 +154,22 @@ int ini_driver()
   ecrt_domain_process(domainInput);
 
   curr_pos = EC_READ_S32(domainInput_pd + mbdh_actpos);
-  printf("curr_pos = %d\n", curr_pos);
+  //printf("curr_pos = %d\n", curr_pos);
 
   target_pos = EC_READ_S32(domainInput_pd + mbdh_actpos);
-  printf("target_pos = %d\n", target_pos);
-  //printf("6041h = %4.4x\n", EC_READ_U16(domainInput_pd + mbdh_statwd));
+  //printf("target_pos = %d\n", target_pos);
 
-
-  static int state = -500;
-  state++;
   switch(state)
   {
-#if 1
+    case -100:
+      printf("fault reset\n");
+      EC_WRITE_U16(domainOutput_pd + mbdh_cntlwd, 0x80);
+    break;
+
     case 0:
       printf("change mode to csp\n");
       EC_WRITE_S8(domainOutput_pd + mbdh_modeop, 8);
     break;
-#endif
 
     case 3:
       printf("shutdown\n");
@@ -149,8 +194,6 @@ int ini_driver()
 
   return state;
 }
-
-void igh_cleanup() {}
 
 void check_domain_state()
 {
