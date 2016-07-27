@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<package>
+  <name>ethercat_main</name>
+  <version>0.0.0</version>
+  <description>The ethercat_main package</description>
+
+  <maintainer email="willie5588912@gmail.com">Wei Shih</maintainer>
+
+  <license>TODO</license>
+
+  <author email="willie5588912@gmail.com">Wei Shih</author>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>rtt</build_depend>
+  <build_depend>rtt_ros</build_depend>
+  <build_depend>rtt_rosclock</build_depend>
+  <build_depend>ethercat_igh</build_depend>
+
+  <run_depend>rtt</run_depend>
+  <run_depend>rtt_rosnode</run_depend>
+  <run_depend>rtt_ros</run_depend>
+  <run_depend>rtt_rosclock</run_depend>
+  <run_depend>ethercat_igh</run_depend>
+
+
+  <!-- The export tag contains other, unspecified, tags -->
+  <export>
+    <plugin_depend>rtt_rosnode</plugin_depend>
+  </export>
+</package>

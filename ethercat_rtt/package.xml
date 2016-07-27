@@ -1,0 +1,23 @@
+<package>
+  <name>ethercat_rtt</name>
+  <version>0.0.0</version>
+  <description>
+    Combine ethercat igh and orocos realtime.
+  </description>
+
+  <maintainer email="willie5588912@gmail.com">Wei Shih</maintainer>
+
+  <license>TODO</license>
+
+  <url type="website">http://igh-essen.com</url>
+
+  <author email="willie5588912@gmail.com">Wei Shih</author>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <run_depend>ethercat_igh</run_depend>
+  <run_depend>ethercat_main</run_depend>
+
+  <export>
+    <metapackage/>
+  </export>
+</package>
