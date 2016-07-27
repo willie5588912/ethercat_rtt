@@ -97,9 +97,12 @@ static ec_sync_info_t mbdh_syncs[] = {
 };
 
 bool igh_configure();
+bool igh_start();
 int  igh_update(int);
+void igh_stop();
 void igh_cleanup();
-int  ini_driver();
+
+int  ini_driver(int);
 void check_domain_state();
 void check_master_state();
 void check_slave_config_states();
